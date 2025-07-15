@@ -1,0 +1,73 @@
+# 1. Import Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import re
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# 2. Load Dataset
+# Replace 'customer_reviews.csv' with your actual file path
+df = pd.read_csv('customer_reviews.csv')
+
+# Display basic info
+print("Dataset Shape:", df.shape)
+print(df.head())
+
+# 3. Basic Preprocessing
+def clean_text(text):
+    text = text.lower()                             # Lowercase
+    text = re.sub(r"http\S+", "", text)             # Remove URLs
+    text = re.sub(r"[^\w\s]", "", text)             # Remove punctuation
+    text = re.sub(r"\d+", "", text)                 # Remove numbers
+    text = re.sub(r"\s+", " ", text).strip()        # Normalize whitespace
+    return text
+
+df['cleaned_review'] = df['review'].apply(clean_text)
+
+# 4. Train-Test Split
+X = df['cleaned_review']
+y = df['sentiment']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# 5. TF-IDF Vectorization
+vectorizer = TfidfVectorizer(stop_words='english', max_df=0.7)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# 6. Train Logistic Regression Model
+model = LogisticRegression()
+model.fit(X_train_tfidf, y_train)
+
+# 7. Evaluate the Model
+y_pred = model.predict(X_test_tfidf)
+
+print("\n📊 Accuracy:", accuracy_score(y_test, y_pred))
+print("\n📝 Classification Report:\n", classification_report(y_test, y_pred))
+
+# Confusion Matrix
+conf_matrix = confusion_matrix(y_test, y_pred)
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.show()
+
+# 8. Sentiment Prediction Function
+def predict_sentiment(text):
+    cleaned = clean_text(text)
+    vectorized = vectorizer.transform([cleaned])
+    prediction = model.predict(vectorized)
+    return "Positive 😊" if prediction[0] == 1 else "Negative 😞"
+
+# 9. Test Prediction
+sample = "The product quality is excellent and service was fast."
+print("\n🗣️ Sample Review:", sample)
+print("📈 Predicted Sentiment:", predict_sentiment(sample))
